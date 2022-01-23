@@ -23,20 +23,6 @@ class Config:
                 if config.get("cooldown") is None:
                     self.log("some config values are None, getting new config")
                     config = self.config_dialog(file)
-
-                if config.get("weapon") == "" or config.get("weapon") == None:
-                    weapon = input("Enter the name of the weapon you use the most (This is for tracking the skins): ").capitalize().strip()
-                    self.log(f"User inputted {weapon} as the weapon")
-                    with open("config.json", "w") as f:
-                        if not self.weapon_check(weapon):
-                            print(weapon + " is not known valorant weapon you can edit directly " + os.getcwd() + "\config.json\n")
-                            config["weapon"] = "vandal"
-                            json.dump(config, f, indent=4)
-                            self.log("vandal weapon has been added to the config file by default")
-                        else:
-                            config["weapon"] = weapon
-                            json.dump(config, f, indent=4)
-                            self.log(f"{weapon} weapon has been added to the config file by user")
                 
         except (JSONDecodeError):
             self.log("invalid file")
@@ -46,10 +32,8 @@ class Config:
             self.cooldown = config["cooldown"]
             self.log(f"got cooldown with value '{self.cooldown}'")
 
-            if not self.weapon_check(config["weapon"]):
-                self.weapon = "vandal" # if the user manually entered a wrong name into the config file, this will be the default until changed by the user.
-            else:   
-                self.weapon = config["weapon"]
+            self.weapon = "vandal" 
+
                 
 
     def config_dialog(self, fileToWrite: TextIOWrapper):
@@ -58,9 +42,3 @@ class Config:
         
         json.dump(jsonToWrite, fileToWrite)
         return jsonToWrite
-
-    def weapon_check(self, name):
-        if name in [weapon["displayName"] for weapon in requests.get("https://valorant-api.com/v1/weapons").json()["data"]]:
-            return True
-        else:
-            return False
