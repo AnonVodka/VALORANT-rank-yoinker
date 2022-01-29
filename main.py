@@ -208,7 +208,6 @@ try:
                 log("Clearing players folder")
                 for f in os.listdir(f"{cwd}/data/players/"):
                     if os.path.isfile(f"{cwd}/data/players/{f}"):
-                        print(f)
                         os.remove(f"{cwd}/data/players/{f}")
 
             log(f"getting new {game_state} scoreboard")

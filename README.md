@@ -24,12 +24,11 @@
     
 ## About The Project
 
- ![Screenshot](assets/Example.png)
- ![Skin Showcase Image](assets/SkinShowcase.png)
+![Screenshot](assets/Example.png)
 
-|Their Queue|Current Skin|Current Rank|Rank Rating|Peak Rank|Account Level|
+|Their Queue|Current Rank|Rank Rating|Peak Rank|Last Season Rank|Account Level|
 |:---:|:---:|:---:|:---:|:---:|:---:|
-|![Parties](assets/Party.png)|![Skin](assets/Skin.png)|![Rank](assets/Rank.png)|![Rating](assets/Rating.png)|![Peak](assets/PeakRank.png)|![Level](assets/Level.png)|
+|![Parties](assets/Party.png)|![Rank](assets/Rank.png)|![Rating](assets/Rating.png)|![LastSeasonRank](assets/LastSeasonRank.png)|![Peak](assets/PeakRank.png)|![Level](assets/Level.png)|
     
 
 ## Usage
@@ -38,9 +37,7 @@
  
 **IMPORTANT: The .exe must be kept with its files, you can create a shortcut to it if you want to place it elsewhere.**
 
-Download and run the [release](https://github.com/isaacKenyon/valorant-rank-yoinker/releases/latest).
-
-To view a player's equipped inventory visit [this website](https://vry.netlify.app/matchLoadouts).
+Download and run the [release](https://github.com/AnonVodka/VALORANT-rank-yoinker/releases/latest).
 
 
 Tutorial:
