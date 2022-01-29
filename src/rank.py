@@ -1,11 +1,15 @@
+import json
+
+
 class Rank:
-    def __init__(self, Requests, log):
+    def __init__(self, Requests, log, cfg=None):
         self.Requests = Requests
         self.log = log
+        self.Cfg = cfg
 
     def get_peak_rank(self, r, puuid):
         """
-            :return [Peak rank, Peak rank season ID]
+            @return [Peak rank, Peak rank season ID]
         """
         self.log(f"getting peak rank for \"{puuid}\"")
         #print(f"getting peak rank for \"{puuid}\"")
@@ -33,6 +37,7 @@ class Rank:
                             if int(winByTier) > max_rank:
                                 max_rank = int(winByTier)
                                 max_rank_season = season
+
         except TypeError as e:
             print("[get_peak_rank] TypeError: ")
             print(e)
@@ -103,7 +108,7 @@ class Rank:
     # and only call this function
     # instead of calling "get_season_rank" multiple times, should help with rate limitation
 
-    def get_rank(self, puuid, seasonID, lastSeasonID):
+    def get_rank(self, puuid, seasonID, lastSeasonID, name="UNKNOWN"):
         """
             [Rank, RR Points, Leaderboard Position, Highest rank, Highest rank season id]
             @return [current season info, last season info, response status]
@@ -121,12 +126,17 @@ class Rank:
 
             r = response.json()
 
+            if self.Cfg is not None and self.Cfg.dumpDataToFiles:
+                with open(f"data/players/{name if name is not 'UNKNOWN' else puuid}.json", "w") as f:
+                    f.write(json.dumps(r))
+                    f.close()
+
             # returns a tupple
             rank = self.get_season_rank(r, puuid, seasonID)
 
             # returns a tupple
-            peak_rank = self.get_peak_rank(r, puuid)       
-
+            peak_rank = self.get_peak_rank(r, puuid)    
+            
             max_rank = peak_rank[0]
             max_rank_season = peak_rank[1]
 

@@ -146,3 +146,6 @@ cython_debug/
 .idea/workspace.xml
 .idea/inspectionProfiles/Project_Default.xml
 .idea/inspectionProfiles/profiles_settings.xml
+compiled/
+data/
+logs/
