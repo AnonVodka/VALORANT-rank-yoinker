@@ -50,13 +50,12 @@ class Rank:
             max_rank_season    
         ]
 
-
     def get_season_rank(self, r, puuid, seasonID):
         """
             @return [Rank, RR Points, Leaderboard Position]
         """
         self.log(f"getting season rank for \"{puuid}\" for season \"{seasonID}\"")
-        print(f"getting season rank for \"{puuid}\" for season \"{seasonID}\"")
+        #print(f"getting season rank for \"{puuid}\" for season \"{seasonID}\"")
 
         try:
             self.log("retrieved rank successfully")
@@ -140,6 +139,7 @@ class Rank:
             max_rank = peak_rank[0]
             max_rank_season = peak_rank[1]
 
+            self.log(f"getting rank for last season \"{lastSeasonID}\"")
             last_season_rank = self.get_season_rank(r, puuid, lastSeasonID)
 
         else:
@@ -157,4 +157,9 @@ class Rank:
         # rank[3] = Highest rank
         # rank[4] = Highest rank's season
 
-        return [rank, last_season_rank, response.ok]
+        #return [rank, last_season_rank, response.ok]
+        return {
+            "rank": rank,
+            "last_season_rank": last_season_rank,
+            "status": response.ok
+        }

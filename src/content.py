@@ -13,39 +13,93 @@ class Content():
     def get_content(self):
         content = self.Requests.fetch("custom", f"https://shared.{self.Requests.region}.a.pvp.net/content-service/v3/content", "get")           
         return content
-
-    def get_latest_season_id(self, content):
+    
+    # gets info about the current act
+    def get_current_season_info(self, content):
         for season in content["Seasons"]:
-            if season["IsActive"]:
-                self.log(f"retrieved season id: {season['ID']}")
-                return season["ID"]
+            if season["IsActive"] and season["Type"] == "act":
+                id = season["ID"]
+                name = season["Name"]
+                startTime = season["StartTime"]
+                endTime = season["EndTime"]
+
+                self.log(f"retrieved season id: {id}")
+                return {
+                    "ID": id,
+                    "Name": name,
+                    "StartTime": startTime,
+                    "EndTime": endTime
+                }
+
+    # this needs to be recoded
+    # each episode only has 3 acts
+    # if we are in act 1, we need to get the last act of the previous episode
+    # possible layout:
+    # Episode 1: ACT 1, ACT 2, ACT 3
+    # Episode 2: ACT 1, ACT 2, ACT 3
+    # Episode 3: ACT 1, ACT 2, ACT 3
+    # Episode 4: ACT 1, ACT 2, ACT 3
 
     def get_last_season_id(self, content):
-        currentSeason = 0
-        latestSeasonID = ""
+        currentEpisode = 0
+        currentAct = 0
+        episodeStartTime = 0
+        episodeEndTime = 0
+
+        lastSeasonID = ""
+
         seasons = content["Seasons"]
 
-        nowTime = time.time()
-
+        # get current episode and act
         for season in seasons:
             if season["IsActive"]:
-                currentSeason = int(re.findall("\d", season["Name"])[0])
+                if season["Type"] == "episode":
+                    # gets the number, startTime and endTime of the current episode
+                    episodeStartTime = timegm(time.strptime(season["StartTime"], "%Y-%m-%dT%H:%M:%SZ"))
+                    episodeEndTime = timegm(time.strptime(season["EndTime"], "%Y-%m-%dT%H:%M:%SZ"))
+                    currentEpisode = int(re.findall("\d", season["Name"])[0])
 
-        if currentSeason > 0:
-            highestTime = 0
+                elif season["Type"] == "act":
+                    # gets the number of the current act
+                    currentAct = int(re.findall("\d", season["Name"])[0])
+        
+
+        if currentEpisode > 0 and currentAct > 0:
+
+            # if our current act isnt 1, subtract 1 from the current act
+            # and get id if the episodes are the same
+            for season in seasons:
+                if currentAct != 1:
+                    if season["Type"] == "act":
+                        actStartTime = timegm(time.strptime(season["StartTime"], "%Y-%m-%dT%H:%M:%SZ"))
+                        actEndTime = timegm(time.strptime(season["EndTime"], "%Y-%m-%dT%H:%M:%SZ"))
+                        
+                        if actStartTime >= episodeStartTime and actEndTime <= episodeEndTime:
+                            if season["Name"].find(str(currentAct-1)) > 0:
+                                lastSeasonID = season["ID"]
+                else: 
+                    # this means that our current act is 1 and a new episode has started
+                    # so we need to subtract 1 from the current episode
+                    # and get the id for the 3rd act of the previous episode                    
+                    # get episode start and endtime first
+                    if season["Type"] == "episode":
+                        if season["Name"].find(str(currentEpisode-1)) > 0:
+                            episodeStartTime = timegm(time.strptime(season["StartTime"], "%Y-%m-%dT%H:%M:%SZ"))
+                            episodeEndTime = timegm(time.strptime(season["EndTime"], "%Y-%m-%dT%H:%M:%SZ"))
 
             for season in seasons:
-                if season["Type"] == "act":
-                    if season["Name"].find(str(currentSeason-1)) > 0:
-                        endTime = timegm(time.strptime(season["EndTime"], "%Y-%m-%dT%H:%M:%SZ"))
-                        if endTime > highestTime and endTime < nowTime:
-                            highestTime = endTime                            
-                            latestSeasonID = season["ID"]
+                if season["Type"] == "act" and not season["IsActive"]:
+                    actStartTime = timegm(time.strptime(season["StartTime"], "%Y-%m-%dT%H:%M:%SZ"))
+                    actEndTime = timegm(time.strptime(season["EndTime"], "%Y-%m-%dT%H:%M:%SZ"))                    
+                    if season["Name"] == "ACT 3":
+                        if actStartTime >= episodeStartTime and actEndTime <= episodeEndTime:
+                            lastSeasonID = season["ID"]
 
-            self.log(f"retrieved last season id: {latestSeasonID}")
-            return latestSeasonID
+            self.log(f"retrieved last season id: {lastSeasonID}")
+            return lastSeasonID
+
         return "UNKNOWN"
-    
+         
     def get_name_from_season_id(self, seasonID):
         if seasonID == "UNKNOWN":
             return "UNKNOWN"

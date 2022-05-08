@@ -149,3 +149,5 @@ cython_debug/
 compiled/
 data/
 logs/
+config.json
+*.json

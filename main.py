@@ -65,16 +65,16 @@ def player_loop(state, players, table, tableClass, bar):
 
         playerRank = rank.get_rank(subject, seasonID, lastSeasonID, names[subject])   
         
-        rankStatus = playerRank[2]
+        rankStatus = playerRank.get("status")
 
         while not rankStatus:
             print("You have been rate limited, 😞 waiting 10 seconds!")
             time.sleep(10)
             playerRank = rank.get_rank(subject, seasonID, lastSeasonID)
-            rankStatus = playerRank[2]
+            rankStatus = playerRank.get("status")
 
-        lastSeasonPlayerRank = playerRank[1]
-        playerRank = playerRank[0]
+        lastSeasonPlayerRank = playerRank.get("last_season_rank")
+        playerRank = playerRank.get("rank")
 
         player_level = player["PlayerIdentity"].get("AccountLevel")
         player_level_color = colors.level_to_color(player_level)
@@ -139,15 +139,8 @@ def player_loop(state, players, table, tableClass, bar):
 
 
 try:
-    cwd = os.getcwd()
-    if not os.path.exists(f"{cwd}/data"):
-        os.makedirs(f"{cwd}/data")
-    if not os.path.exists(f"{cwd}/data/players"):
-        os.makedirs(f"{cwd}/data/players")
 
     Requests = Requests(version)
-    #Requests.check_version()
-    #Requests.check_status()
 
     Logging = Logging()
     log = Logging.log
@@ -177,9 +170,18 @@ try:
 
     log(f"VALORANT rank yoinker v{version}")
 
+    cwd = os.getcwd()
+    if cfg.dumpDataToFiles:
+        if not os.path.exists(f"{cwd}/data"):
+            os.makedirs(f"{cwd}/data")
+        if not os.path.exists(f"{cwd}/data/players"):
+            os.makedirs(f"{cwd}/data/players")
+
     gameContent = content.get_content()
-    seasonID = content.get_latest_season_id(gameContent)
+    seasonID = content.get_current_season_info(gameContent).get("ID")
     lastSeasonID = content.get_last_season_id(gameContent)
+    lastSeasonName = content.get_name_from_season_id(lastSeasonID)
+    currentSeasonName = content.get_name_from_season_id(seasonID)
     lastGameState = ""
 
     if cfg.dumpDataToFiles:
@@ -275,17 +277,19 @@ try:
                     player_loop(game_state, Players, table, tableClass, bar)
             
             if (title := game_state_dict.get(game_state)) is None:
-                program_exit(1)
+                time.sleep(10)
 
             if server != "":
-                table.title = f"Valorant status: {title} - {server}"
+                table.title = f"Valorant status: {title} - {server} - {currentSeasonName}"
             else:
-                table.title = f"Valorant status: {title}"
+                table.title = f"Valorant status: {title} - {currentSeasonName}"
 
             server = ""
-            table.field_names = ["Party", "Agent", "Name", "Rank", "RR", "Last Season Rank", "Peak Rank", "pos.", "Level"]
-            print(table)
-            print(f"VALORANT rank yoinker v{version}")
+            table.field_names = ["Party", "Agent", "Name", "Rank", "RR", "Last Season Rank (" + lastSeasonName + ")", "Peak Rank", "pos.", "Level"]
+            if title is not None:
+                print(table)
+                print(f"VALORANT rank yoinker v{version}")
+
         if cfg.cooldown == 0:
             input("Press enter to fetch again...")
         else:
