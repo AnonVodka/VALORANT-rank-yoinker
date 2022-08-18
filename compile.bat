@@ -1,1 +1,2 @@
-pyinstaller --noconfirm --onedir --console --icon "./assets/favicon.ico" --name "vry" "./main.py" --distpath "./compiled" 
+pyinstaller --noconfirm --onefile --console --icon "./assets/favicon.ico" --name "vry" "./main.py" --distpath "./compiled/file" 
+pyinstaller --noconfirm --onefile --console --icon "./assets/favicon.ico" --name "vry" "./main.py" --distpath "./compiled/dir" 

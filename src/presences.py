@@ -10,15 +10,11 @@ class Presences:
 
     def get_presence(self):
         presences = self.Requests.fetch(url_type="local", endpoint="/chat/v4/presences", method="get")
-        self.log(f"fetched presences:")
         return presences['presences']
 
     def get_game_state(self, presences):
         for presence in presences:
             if presence['puuid'] == self.Requests.puuid:
-                #preventing vry from crashing when lol is open
-                # print(presence)
-                # print(presence.get("championId"))
                 if presence.get("championId") is not None or presence.get("product") == "league_of_legends":
                     return None
                 else:

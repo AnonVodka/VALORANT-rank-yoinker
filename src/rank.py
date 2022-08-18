@@ -1,5 +1,26 @@
-import json
+from dataclasses import dataclass
+import src.constants as consts
+import json 
 
+@dataclass
+class rank_data:
+    rank: int = 0
+    rank_name: str = consts.ranks.get(0)
+
+@dataclass
+class peak_rank(rank_data):
+    season: str = "UNKNOWN"
+
+@dataclass
+class season_rank(rank_data):
+    rr_points: int = 0
+    position: int = 0
+
+@dataclass
+class rank_info:
+    current: season_rank = season_rank(rank = 0, rr_points = 0, position = 0, rank_name="UNKNOWN")
+    peak: peak_rank = peak_rank(rank = 0, season = "UNKNOWN", rank_name="UNKNOWN")
+    last_season: season_rank = season_rank( rank = 0, rr_points = 0, position = 0, rank_name="UNKNOWN")
 
 class Rank:
     def __init__(self, Requests, log, cfg=None):
@@ -7,25 +28,26 @@ class Rank:
         self.log = log
         self.Cfg = cfg
 
-    def get_peak_rank(self, r, puuid):
-        """
-            @return [Peak rank, Peak rank season ID]
-        """
-        self.log(f"getting peak rank for \"{puuid}\"")
-        #print(f"getting peak rank for \"{puuid}\"")
+    def get_peak_rank(self, r: dict, puuid: str) -> peak_rank:
+        """gets the peak rank for the given player uuid
 
-        max_rank = 0
-        max_rank_season = "UNKNOWN"
+        Args:
+            r (dict): response from the api
+            puuid (str): player uuid
+
+        Returns:
+            peak_rank: peak rank, peak rank name, season id
+        """
+        
+        self.log(f"getting peak rank for \"{puuid}\"")
+
+        peak = peak_rank()
 
         if r is None:
-            return [
-                max_rank, 
-                max_rank_season    
-            ]
+            return peak
 
         try:
             self.log("retrieved rank successfully")
-            #print("retrieved rank successfully")
 
             seasons = r["QueueSkills"]["competitive"].get("SeasonalInfoBySeasonID")
 
@@ -34,9 +56,10 @@ class Rank:
                 for season in r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"]:
                     if r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][season]["WinsByTier"] is not None:
                         for winByTier in r["QueueSkills"]["competitive"]["SeasonalInfoBySeasonID"][season]["WinsByTier"]:
-                            if int(winByTier) > max_rank:
-                                max_rank = int(winByTier)
-                                max_rank_season = season
+                            if int(winByTier) > peak.rank:
+                                peak.rank = int(winByTier)
+                                peak.season = season
+                                peak.rank_name = consts.ranks.get(peak.rank)
 
         except TypeError as e:
             print("[get_peak_rank] TypeError: ")
@@ -45,17 +68,22 @@ class Rank:
             print("[get_peak_rank] KeyError: ")
             print(e)
 
-        return [
-            max_rank, 
-            max_rank_season    
-        ]
+        return peak
 
-    def get_season_rank(self, r, puuid, seasonID):
-        """
-            @return [Rank, RR Points, Leaderboard Position]
-        """
+    def get_season_rank(self, r: dict, puuid: str, seasonID: str) -> season_rank:
+        """gets the season rank for the given player uuid and season id
+
+        Args:
+            r (dict): response from the api
+            puuid (str): player uuid
+            seasonID (str): season uuid
+
+        Returns:
+            season_rank: rank, rank name, rr points, leaderboard position
+        """              
         self.log(f"getting season rank for \"{puuid}\" for season \"{seasonID}\"")
-        #print(f"getting season rank for \"{puuid}\" for season \"{seasonID}\"")
+
+        rank = season_rank()
 
         try:
             self.log("retrieved rank successfully")
@@ -63,103 +91,64 @@ class Rank:
             seasons = r["QueueSkills"]["competitive"].get("SeasonalInfoBySeasonID")
 
             if seasons is None:
-                rank = [0, 0, 0]
                 self.log(f"user \"{puuid}\" has not played competitive yet")
             elif seasonID not in seasons:
-                rank = [0, 0, 0]
                 self.log(f"user \"{puuid}\" has not played competitive in season \"{seasonID}\" yet")
             else:
                 season = seasons[seasonID]
 
-                rankTIER = season["CompetitiveTier"]
+                rank.rank = season["CompetitiveTier"]
+                rank.rank_name = consts.ranks.get(rank.rank)
+                rank.rr_points = season["RankedRating"]
 
-                if int(rankTIER) >= 21: # immortal 1
-                    rank = [
-                            rankTIER,
-                            season["RankedRating"],
-                            season["LeaderboardRank"], 
-                        ]
-                elif int(rankTIER) not in (0, 1, 2): # unrated, unrated, unrated
-                    rank = [
-                            rankTIER,
-                            season["RankedRating"],
-                            0,
-                        ]
-                else:
-                    rank = [0, 0, 0] 
-
-                #print("rank: ")
-                #print(rank)
+                if int(rank.rank) >= 24: # immortal 1
+                    rank.position = season["LeaderboardRank"]
 
         except TypeError as e:
             print("[get_season_rank] TypeError: ")
             print(e)
-            rank = [0, 0, 0]
         except KeyError as e:
             print("[get_season_rank] KeyError: ")
             print(e)
-            rank = [0, 0, 0] 
 
         return rank
 
-    # fetch player info here
-    # and pass the response to the functions
-    # and only call this function
-    # instead of calling "get_season_rank" multiple times, should help with rate limitation
+    def get_rank(self, puuid: str, seasonID: str, lastSeasonID: str, name: str = None) -> rank_info:
+        """gets the full rank info for the given player uuid and season uuid
 
-    def get_rank(self, puuid, seasonID, lastSeasonID, name="UNKNOWN"):
+        Args:
+            puuid (str): player uuid
+            seasonID (str): current season uuid
+            lastSeasonID (str): last seasn uuid
+            name (str, optional): player name for logging purposes. Defaults to None.
+
+        Returns:
+            rank_info: season_rank, peak_rank, last_season_rank
         """
-            [Rank, RR Points, Leaderboard Position, Highest rank, Highest rank season id]
-            @return [current season info, last season info, response status]
-        """
+               
         response = self.Requests.fetch('pd', f"/mmr/v1/players/{puuid}", "get")
 
-        max_rank = 0
-        max_rank_season = "UNKNOWN"
-        rank = []
-        last_season_rank = []
+        info = rank_info()
 
         if response.ok:
             self.log(f"getting rank for season \"{seasonID}\"")
-            #print(f"getting rank for season \"{seasonID}\"")
 
             r = response.json()
 
             if self.Cfg is not None and self.Cfg.dumpDataToFiles:
-                with open(f"data/players/{name if name is not 'UNKNOWN' else puuid}.json", "w") as f:
+                with open(f"data/players/{name if name is not None else puuid}.json", "w") as f:
                     f.write(json.dumps(r))
                     f.close()
 
-            # returns a tupple
-            rank = self.get_season_rank(r, puuid, seasonID)
+            info.current = self.get_season_rank(r, puuid, seasonID)
 
-            # returns a tupple
-            peak_rank = self.get_peak_rank(r, puuid)    
+            info.peak = self.get_peak_rank(r, puuid)   
             
-            max_rank = peak_rank[0]
-            max_rank_season = peak_rank[1]
-
             self.log(f"getting rank for last season \"{lastSeasonID}\"")
-            last_season_rank = self.get_season_rank(r, puuid, lastSeasonID)
+            info.last_season = self.get_season_rank(r, puuid, lastSeasonID)
 
         else:
             self.log(f"failed to get rank information for \"{puuid}\" in season \"{seasonID}\"")
             self.log(response.text)
-            rank = [0, 0, 0]
 
-        rank.append(max_rank)
-        rank.append(max_rank_season)  
-
-        # rank structure
-        # rank[0] = Rank
-        # rank[1] = RR Points
-        # rank[2] = Leaderboard position
-        # rank[3] = Highest rank
-        # rank[4] = Highest rank's season
-
-        #return [rank, last_season_rank, response.ok]
-        return {
-            "rank": rank,
-            "last_season_rank": last_season_rank,
-            "status": response.ok
-        }
+        return info

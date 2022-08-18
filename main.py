@@ -1,14 +1,13 @@
 import traceback
-import requests
 import urllib3
 import os
-import base64
 import json
 import time
 from prettytable import PrettyTable
 from alive_progress import alive_bar
 
-from src.constants import *
+import src.constants as consts
+from src.player import Player
 from src.requests import Requests
 from src.logs import Logging
 from src.config import Config
@@ -28,7 +27,7 @@ from src.server import Server
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 os.system('cls')
-os.system(f"title VALORANT rank yoinker v{version}")
+os.system(f"title VALORANT rank yoinker")
 
 server = ""
 
@@ -44,81 +43,64 @@ def player_loop(state, players, table, tableClass, bar):
     lastTeam = "Red"
 
     for player in players:
-        subject = player["Subject"]
+        player.update({"seasonID": seasonID})
+        player.update({"lastSeasonID": lastSeasonID})
+
+        subject = Player(player, Requests, log, cfg)
+        puuid = subject.get_uuid()
 
         party_icon = ""
     
         if state != "MENUS":
             # set party premade icon
             for party in partyOBJ:
-                if subject in partyOBJ[party]:
+                if puuid in partyOBJ[party]:
                     if party not in partyIcons:
-                        partyIcons.update({party: PARTYICONLIST[partyCount]})
+                        partyIcons.update({party: consts.PARTYICONLIST[partyCount]})
                         # PARTY_ICON
-                        party_icon = PARTYICONLIST[partyCount]
+                        party_icon = consts.PARTYICONLIST[partyCount]
                         partyCount += 1
                     else:
                         # PARTY_ICON
                         party_icon = partyIcons[party]
         else:
-            party_icon = PARTYICONLIST[0]
+            party_icon = consts.PARTYICONLIST[0]
 
-        playerRank = rank.get_rank(subject, seasonID, lastSeasonID, names[subject])   
-        
-        rankStatus = playerRank.get("status")
-
-        while not rankStatus:
-            print("You have been rate limited, 😞 waiting 10 seconds!")
-            time.sleep(10)
-            playerRank = rank.get_rank(subject, seasonID, lastSeasonID)
-            rankStatus = playerRank.get("status")
-
-        lastSeasonPlayerRank = playerRank.get("last_season_rank")
-        playerRank = playerRank.get("rank")
-
-        player_level = player["PlayerIdentity"].get("AccountLevel")
+        player_level = subject.get_account_level()
         player_level_color = colors.level_to_color(player_level)
 
-        name = ""
-        agent = ""
-        
-        rankName = NUMBERTORANKS[playerRank[0]]
-        lastRankName = NUMBERTORANKS[lastSeasonPlayerRank[0]]
-        
-        rr = playerRank[1]
+        name = subject.get_name()
+        agent = subject.get_agent()
 
-        peakRank = NUMBERTORANKS[playerRank[3]]
+        currentRank = subject.get_current_rank()
+        peakRank = subject.get_peak_rank()
+        lastSeasonRank = subject.get_last_season_rank()
+                
+        peakRankName = peakRank.rank_name
+        peakSeason = content.get_name_from_season_id(peakRank.season)
 
-        peakSeason = content.get_name_from_season_id(playerRank[-1])
         if peakSeason != None and peakSeason != "UNKNOWN":
-            peakRank = peakRank + " (%s)" % peakSeason
+            peakRankName = peakRankName + " (%s)" % peakSeason
 
-        leaderboardPosition = playerRank[2]
+        leaderboardPosition = currentRank.position
 
-        if state == "MENUS":
-            name = names[subject]
-
-        elif state == "PREGAME":
-            if player["PlayerIdentity"]["Incognito"]:
-                name = colors.get_color_from_team(pregame_stats['Teams'][0]['TeamID'], names[subject], subject, Requests.puuid, agent=player["CharacterID"])
-            else:
-                name = colors.get_color_from_team(pregame_stats['Teams'][0]['TeamID'], names[subject], subject, Requests.puuid)
+        if state == "PREGAME":
+            name = colors.get_color_from_team(pregame_stats['Teams'][0]['TeamID'], name, puuid, Requests.puuid)
 
             if player["CharacterSelectionState"] == "locked":
-                agent = color(str(agent_dict.get(player["CharacterID"].lower())), fore=(255, 255, 255))
+                agent = consts.color(str(agent_dict.get(agent.lower())), fore=(255, 255, 255))
             elif player["CharacterSelectionState"] == "selected":
-                agent = color(str(agent_dict.get(player["CharacterID"].lower())), fore=(128, 128, 128))
+                agent = consts.color(str(agent_dict.get(agent.lower())), fore=(128, 128, 128))
             else:
-                agent = color(str(agent_dict.get(player["CharacterID"].lower())), fore=(54, 53, 51))
+                agent = consts.color(str(agent_dict.get(agent.lower())), fore=(54, 53, 51))
 
 
         elif state == "INGAME":
-            name = colors.get_color_from_team(player["TeamID"], names[subject], subject, Requests.puuid)
+            name = colors.get_color_from_team(subject.get_team(), name, puuid, Requests.puuid)
 
-            agent = colors.get_agent_from_uuid(player["CharacterID"].lower())
-       
+            agent = colors.get_agent_from_uuid(agent.lower())
 
-            if lastTeam != player["TeamID"]:
+            if lastTeam != subject.get_team():
                 if lastTeamBoolean:
                     tableClass.add_row_table(table, ["", "", "", "", "", "", "", "", ""])
 
@@ -128,10 +110,10 @@ def player_loop(state, players, table, tableClass, bar):
         tableClass.add_row_table(table, [party_icon,
                         agent,
                         name,
-                        rankName,
-                        rr,
-                        lastRankName,
-                        peakRank,
+                        currentRank.rank_name,
+                        currentRank.rr_points,
+                        lastSeasonRank.rank_name,
+                        peakRankName,
                         leaderboardPosition,
                         player_level_color
                         ])
@@ -140,7 +122,7 @@ def player_loop(state, players, table, tableClass, bar):
 
 try:
 
-    Requests = Requests(version)
+    Requests = Requests()
 
     Logging = Logging()
     log = Logging.log
@@ -164,11 +146,11 @@ try:
 
     agent_dict = content.get_all_agents()
 
-    colors = Colors(hide_names, agent_dict, AGENTCOLORLIST)
+    colors = Colors(agent_dict, consts.agents)
 
     tableClass = Table()
 
-    log(f"VALORANT rank yoinker v{version}")
+    log(f"VALORANT rank yoinker")
 
     cwd = os.getcwd()
     if cfg.dumpDataToFiles:
@@ -217,18 +199,23 @@ try:
             lastGameState = game_state
 
             game_state_dict = {
-                "INGAME": color('In-Game', fore=(241, 39, 39)),
-                "PREGAME": color('Agent Select', fore=(103, 237, 76)),
-                "MENUS": color('In-Menus', fore=(238, 241, 54)),
+                "INGAME": consts.color('In-Game', fore=(241, 39, 39)),
+                "PREGAME": consts.color('Agent Select', fore=(103, 237, 76)),
+                "MENUS": consts.color('In-Menus', fore=(238, 241, 54)),
             }
 
             if game_state == "INGAME":
 
                 coregame_stats = coregame.get_coregame_stats()
+
                 Players = coregame_stats["Players"]
-                server = GAMEPODS[coregame_stats["GamePodID"]]
+
+                server = consts.GAMEPODS[coregame_stats["GamePodID"]]
+
                 presences.wait_for_presence(namesClass.get_players_puuid(Players))
+                
                 names = namesClass.get_names_from_puuids(Players)
+
                 with alive_bar(total=len(Players), title='Fetching Players', bar='classic2') as bar:
                     presence = presences.get_presence()
                     partyOBJ = menu.get_party_json(namesClass.get_players_puuid(Players), presence)
@@ -244,7 +231,7 @@ try:
 
                 pregame_stats = pregame.get_pregame_stats()
 
-                server = GAMEPODS[pregame_stats["GamePodID"]]
+                server = consts.GAMEPODS[pregame_stats["GamePodID"]]
 
                 Players = pregame_stats["AllyTeam"]["Players"]
 
@@ -288,14 +275,14 @@ try:
             table.field_names = ["Party", "Agent", "Name", "Rank", "RR", "Last Season Rank (" + lastSeasonName + ")", "Peak Rank", "pos.", "Level"]
             if title is not None:
                 print(table)
-                print(f"VALORANT rank yoinker v{version}")
+                print(f"VALORANT rank yoinker")
 
         if cfg.cooldown == 0:
             input("Press enter to fetch again...")
         else:
             time.sleep(cfg.cooldown)
 except:
-    print(color(
+    print(consts.color(
         "The program has encountered an error. If the problem persists, please reach support"
         f" with the logs found in {cwd}\logs", fore=(255, 0, 0)))
     traceback.print_exc()

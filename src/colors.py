@@ -1,20 +1,11 @@
 from colr import color
-from src.constants import tierDict
 
 class Colors:
-    def __init__(self, hide_names, agent_dict, AGENTCOLORLIST):
-        self.hide_names = hide_names
+    def __init__(self, agent_dict, AGENTCOLORLIST):
         self.agent_dict = agent_dict
-        self.tier_dict = tierDict
         self.AGENTCOLORLIST = AGENTCOLORLIST
 
-    def get_color_from_team(self, team, name, playerPuuid, selfPuuid, agent=None):
-        if agent is not None:
-            if self.hide_names:
-                if agent != "":
-                    name = self.agent_dict[agent]
-                else:
-                    name = "Player"
+    def get_color_from_team(self, team, name, playerPuuid, selfPuuid):
         if team == 'Red':
             Teamcolor = color(name, fore=(238, 77, 77))
         elif team == 'Blue':
@@ -24,12 +15,6 @@ class Colors:
         if playerPuuid == selfPuuid:
             Teamcolor = color(name, fore=(221, 224, 41))
         return Teamcolor
-
-
-    def get_rgb_color_from_skin(self, skin_id, valoApiSkins):
-        for skin in valoApiSkins.json()["data"]:
-            if skin_id == skin["uuid"]:
-                return self.tier_dict[skin["contentTierUuid"]]
 
     def level_to_color(self, level):
         if level >= 400:
